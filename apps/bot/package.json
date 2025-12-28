@@ -5,6 +5,8 @@
   "private": true,
   "scripts": {
     "dev": "bun index.ts",
+    "deploy": "bun src/handlers/deployCommands.ts",
+    "deploy:guild": "bun src/handlers/deployCommands.ts --guild",
     "lint": "eslint ."
   },
   "dependencies": {
