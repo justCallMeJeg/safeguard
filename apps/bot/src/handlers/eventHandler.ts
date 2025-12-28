@@ -1,11 +1,18 @@
 import { readdirSync, statSync, watch } from "fs";
 import { join, relative } from "path";
 import type { SafeguardClient } from "../structures/SafeguardClient";
-import type { SafeguardEvent } from "../types/events";
+import type { SafeguardEvent, MiddlewareContext } from "../types/events";
 import { Logger } from "../structures/Logger";
 
 /** Path to the events directory */
 const EVENTS_DIR = join(import.meta.dir, "..", "events");
+
+/**
+ * Generate a unique execution ID
+ */
+function generateExecutionId(): string {
+  return `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
 
 /**
  * Recursively get all TypeScript files in a directory
@@ -48,20 +55,96 @@ function registerEvent(client: SafeguardClient, event: SafeguardEvent, filePath:
     return;
   }
 
-  // Create the event handler with error boundary
+  // Create the event handler with middleware, cooldowns, and error boundary
   const handler = async (...args: unknown[]) => {
+    const startTime = Date.now();
+    const executionId = generateExecutionId();
+
+    // Create middleware context
+    const ctx: MiddlewareContext = {
+      eventName: event.name,
+      timestamp: startTime,
+      executionId,
+      data: {},
+    };
+
+    let error: Error | undefined;
+
     try {
+      // Check cooldown
+      if (event.cooldown) {
+        const remaining = client.cooldowns.check(event.name, event.cooldown.scope, args);
+
+        if (remaining > 0) {
+          Logger.debug(`Event:${event.name}`, `On cooldown for ${Math.ceil(remaining / 1000)}s`);
+          return; // Skip execution if on cooldown
+        }
+      }
+
+      // Run beforeExecute middleware
+      if (event.beforeExecute) {
+        const shouldContinue = await event.beforeExecute(
+          ctx,
+          client,
+          ...(args as Parameters<typeof event.beforeExecute> extends [
+            MiddlewareContext,
+            SafeguardClient,
+            ...infer R,
+          ]
+            ? R
+            : never)
+        );
+
+        if (!shouldContinue) {
+          Logger.debug(`Event:${event.name}`, `Blocked by beforeExecute middleware`);
+          return;
+        }
+      }
+
+      // Set cooldown BEFORE execution (prevents spam during async execution)
+      if (event.cooldown) {
+        client.cooldowns.set(event.name, event.cooldown.scope, event.cooldown.duration, args);
+      }
+
+      // Execute the main event handler
       await event.execute(
         client,
         ...(args as Parameters<typeof event.execute> extends [SafeguardClient, ...infer R]
           ? R
           : never)
       );
-    } catch (error) {
-      Logger.error(
-        `Event:${event.name}`,
-        error instanceof Error ? error : new Error(String(error))
-      );
+    } catch (err) {
+      error = err instanceof Error ? err : new Error(String(err));
+      Logger.error(`Event:${event.name}`, error);
+    } finally {
+      const duration = Date.now() - startTime;
+
+      // Run afterExecute middleware
+      if (event.afterExecute) {
+        try {
+          await event.afterExecute(
+            { ...ctx, duration, error },
+            client,
+            ...(args as Parameters<typeof event.afterExecute> extends [
+              MiddlewareContext & { duration: number },
+              SafeguardClient,
+              ...infer R,
+            ]
+              ? R
+              : never)
+          );
+        } catch (afterErr) {
+          Logger.error(
+            `Event:${event.name}:afterExecute`,
+            afterErr instanceof Error ? afterErr : new Error(String(afterErr))
+          );
+        }
+      }
+
+      // Log slow events (> 1 second)
+      if (duration > 1000) {
+        Logger.warn(`Event:${event.name}`, `Slow execution: ${duration}ms`);
+      }
     }
   };
 
