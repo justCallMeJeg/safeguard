@@ -1,6 +1,7 @@
 import { Client, Collection, GatewayIntentBits, type ClientOptions } from "discord.js";
 import type { SafeguardEvent } from "../types/events";
 import { Logger } from "./Logger";
+import { CooldownManager } from "./CooldownManager";
 import { loadEvents, setupHotReload } from "../handlers/eventHandler";
 
 /**
@@ -10,6 +11,9 @@ import { loadEvents, setupHotReload } from "../handlers/eventHandler";
 export class SafeguardClient extends Client {
   /** Collection of registered events */
   public events: Collection<string, SafeguardEvent> = new Collection();
+
+  /** Cooldown manager for event rate limiting */
+  public cooldowns: CooldownManager = new CooldownManager();
 
   /** Whether hot reloading is enabled (dev mode) */
   public hotReloadEnabled: boolean;
