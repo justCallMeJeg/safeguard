@@ -1,4 +1,4 @@
-import { Events, type Interaction } from "discord.js";
+import { Events, MessageFlags, type Interaction } from "discord.js";
 import type { SafeguardEvent } from "../../types/events";
 import { Logger } from "../../structures/Logger";
 
@@ -28,7 +28,7 @@ const event: SafeguardEvent<"interactionCreate"> = {
       if (!interaction.replied && !interaction.deferred) {
         await interaction.reply({
           content: `🔧 Command \`/${commandName}\` received! Command handler coming soon.`,
-          ephemeral: true,
+          flags: MessageFlags.Ephemeral,
         });
       }
 
