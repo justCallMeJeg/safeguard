@@ -1,0 +1,43 @@
+{
+  "name": "safeguard",
+  "version": "1.0.0",
+  "description": "Discord moderation bot with dashboard",
+  "type": "module",
+  "scripts": {
+    "dev:bot": "pnpm --filter bot dev",
+    "dev:web": "pnpm --filter dashboard dev",
+    "dev": "pnpm --parallel dev",
+    "db:generate": "pnpm --filter @safeguard/database generate",
+    "db:push": "pnpm --filter @safeguard/database push",
+    "db:studio": "pnpm --filter @safeguard/database studio",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "prepare": "husky"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.12.1",
+  "devDependencies": {
+    "@eslint/js": "^9.28.0",
+    "eslint": "^9.28.0",
+    "eslint-config-prettier": "^10.1.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
+    "prettier": "^3.5.3",
+    "supabase": "^2.70.5",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.34.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,mjs}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md,css,scss,yaml,yml}": [
+      "prettier --write"
+    ]
+  }
+}

@@ -1,0 +1,31 @@
+# Dependencies
+node_modules/
+.pnpm-debug.log
+
+# Build Outputs
+dist/
+.next/
+out/
+build/
+
+# Environment Variables (CRITICAL)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.env
+
+# IDE / OS Files
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.DS_Store
+*.swp
+
+# Bun & Runtime
+bun.lockb
+*.log
+
+# Prisma / Database
+/packages/database/generated/
