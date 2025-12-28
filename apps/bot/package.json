@@ -4,11 +4,12 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "dev": "bun --watch index.ts",
+    "dev": "bun index.ts",
     "lint": "eslint ."
   },
   "dependencies": {
     "@safeguard/database": "workspace:*",
+    "consola": "^3.4.2",
     "discord.js": "^14.25.1"
   },
   "devDependencies": {
