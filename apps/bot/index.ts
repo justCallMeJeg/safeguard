@@ -1,12 +1,26 @@
-import { Client, GatewayIntentBits } from "discord.js";
-// import { PrismaClient } from '@safeguard/database';
+import { SafeguardClient } from "./src/structures/SafeguardClient";
+import { Logger } from "./src/structures/Logger";
 
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildModeration],
+// Create and start the client
+const client = new SafeguardClient();
+
+// Handle graceful shutdown
+process.on("SIGINT", async () => {
+  await client.shutdown();
 });
 
-client.once("clientReady", () => {
-  console.log(`🛡️ Safeguard is online as ${client.user?.tag}`);
+process.on("SIGTERM", async () => {
+  await client.shutdown();
 });
 
-client.login(process.env.BOT_TOKEN);
+// Handle uncaught errors
+process.on("uncaughtException", (error) => {
+  Logger.error("UncaughtException", error);
+});
+
+process.on("unhandledRejection", (reason) => {
+  Logger.error("UnhandledRejection", reason instanceof Error ? reason : new Error(String(reason)));
+});
+
+// Start the bot
+client.start();
