@@ -6,6 +6,7 @@ import type {
   MessageContextMenuCommandInteraction,
   PermissionResolvable,
   SlashCommandBuilder,
+  SlashCommandOptionsOnlyBuilder,
   SlashCommandSubcommandsOnlyBuilder,
   UserContextMenuCommandInteraction,
 } from "discord.js";
@@ -72,6 +73,7 @@ export interface SafeguardCommand extends BaseCommand {
   /** The slash command builder data */
   data:
     | SlashCommandBuilder
+    | SlashCommandOptionsOnlyBuilder
     | SlashCommandSubcommandsOnlyBuilder
     | Omit<SlashCommandBuilder, "addSubcommand" | "addSubcommandGroup">;
 
