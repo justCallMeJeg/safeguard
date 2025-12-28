@@ -96,6 +96,15 @@ export class Logger {
   }
 
   /**
+   * Log an info message
+   * @param context - The context/scope
+   * @param message - The info message
+   */
+  static info(context: string, message: string): void {
+    this.scoped(context).info(message);
+  }
+
+  /**
    * Log a success message
    * @param context - The context/scope
    * @param message - The success message
