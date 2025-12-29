@@ -7,6 +7,8 @@
     "dev:bot": "pnpm --filter bot dev",
     "dev:web": "pnpm --filter dashboard dev",
     "dev": "pnpm --parallel dev",
+    "db:start": "pnpm --filter @safeguard/database start",
+    "db:stop": "pnpm --filter @safeguard/database stop",
     "db:generate": "pnpm --filter @safeguard/database generate",
     "db:push": "pnpm --filter @safeguard/database push",
     "db:studio": "pnpm --filter @safeguard/database studio",

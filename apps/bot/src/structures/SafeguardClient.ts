@@ -9,6 +9,7 @@ import { loadCommands, loadContextMenus, setupCommandHotReload } from "../handle
 import { loadComponents, setupComponentHotReload } from "../handlers/componentHandler";
 import { deployToGuild } from "../handlers/deployCommands";
 import { config, type SafeguardConfig } from "../config";
+import { GuildSettingsService } from "../services/GuildSettingsService";
 
 /**
  * Extended Discord.js Client for the Safeguard bot.
@@ -41,6 +42,9 @@ export class SafeguardClient extends Client {
 
   /** Bot owner user IDs (for ownerOnly commands) */
   public ownerIds: Set<string> = new Set();
+
+  /** Guild settings service for per-guild configuration */
+  public guildSettings: GuildSettingsService = GuildSettingsService.getInstance();
 
   /** The loaded configuration */
   private _config: SafeguardConfig | null = null;
@@ -109,6 +113,10 @@ export class SafeguardClient extends Client {
         this.ownerIds = new Set(newConfig.bot.ownerIds);
       });
 
+      // Initialize guild settings service
+      Logger.info("Client", "Initializing guild settings service...");
+      await this.guildSettings.initialize();
+
       // Load all events
       await loadEvents(this);
 
@@ -152,6 +160,9 @@ export class SafeguardClient extends Client {
 
     // Cleanup config manager
     config.destroy();
+
+    // Cleanup guild settings service
+    this.guildSettings.destroy();
 
     // Cleanup cooldown manager
     this.cooldowns.destroy();
