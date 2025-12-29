@@ -132,7 +132,7 @@ importers:
         version: 7.2.0(@types/react@19.2.7)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(typescript@5.9.3)
     devDependencies:
       '@types/node':
-        specifier: ^20
+        specifier: ^20.19.27
         version: 20.19.27
 
 packages:
