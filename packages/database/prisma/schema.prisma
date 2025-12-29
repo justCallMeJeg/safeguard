@@ -14,11 +14,32 @@ datasource db {
 }
 
 model Guild {
-  id               String   @id // Discord Guild ID
-  antinuke_enabled Boolean  @default(false)
-  logs_channel     String?
-  whitelist        String[] @default([])
-  created_at       DateTime @default(now())
+  id String @id // Discord Guild ID
+
+  // Feature toggles
+  antinuke_enabled Boolean @default(false)
+  logging_enabled  Boolean @default(true)
+  welcome_enabled  Boolean @default(false)
+
+  // Logging channels
+  logs_channel        String? // General bot logs
+  mod_logs_channel    String? // Moderation action logs
+  member_logs_channel String? // Join/leave logs
+
+  // Roles
+  muted_role String? // Role for muted members
+  mod_role   String? // Moderator role (permission level)
+  admin_role String? // Admin role (higher permission level)
+
+  // Antinuke whitelist (user/role IDs exempt from checks)
+  whitelist String[] @default([])
+
+  // Timestamps
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  // Relations
+  auditLogs AuditLog[]
 }
 
 model AuditLog {
@@ -26,5 +47,13 @@ model AuditLog {
   guild_id  String
   action    String
   executor  String
+  target_id String?
+  reason    String?
+  metadata  Json?
   timestamp DateTime @default(now())
+
+  guild Guild @relation(fields: [guild_id], references: [id], onDelete: Cascade)
+
+  @@index([guild_id, timestamp])
+  @@index([executor])
 }
