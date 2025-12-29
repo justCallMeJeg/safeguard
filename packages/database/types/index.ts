@@ -13,26 +13,26 @@ export interface Guild {
   id: string;
 
   // Feature toggles
-  antinuke_enabled: boolean;
-  logging_enabled: boolean;
-  welcome_enabled: boolean;
+  antinukeEnabled: boolean;
+  loggingEnabled: boolean;
+  welcomeEnabled: boolean;
 
   // Logging channels
-  logs_channel: string | null;
-  mod_logs_channel: string | null;
-  member_logs_channel: string | null;
+  logsChannel: string | null;
+  modLogsChannel: string | null;
+  memberLogsChannel: string | null;
 
   // Roles
-  muted_role: string | null;
-  mod_role: string | null;
-  admin_role: string | null;
+  mutedRole: string | null;
+  modRole: string | null;
+  adminRole: string | null;
 
   // Whitelist
   whitelist: string[];
 
   // Timestamps
-  created_at: Date;
-  updated_at: Date;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 /**
@@ -41,10 +41,10 @@ export interface Guild {
  */
 export interface AuditLog {
   id: number;
-  guild_id: string;
+  guildId: string;
   action: string;
   executor: string;
-  target_id: string | null;
+  targetId: string | null;
   reason: string | null;
   metadata: unknown;
   timestamp: Date;
@@ -61,19 +61,19 @@ export interface GuildCreate {
   id: string;
 
   // Feature toggles
-  antinuke_enabled?: boolean;
-  logging_enabled?: boolean;
-  welcome_enabled?: boolean;
+  antinukeEnabled?: boolean;
+  loggingEnabled?: boolean;
+  welcomeEnabled?: boolean;
 
   // Logging channels
-  logs_channel?: string | null;
-  mod_logs_channel?: string | null;
-  member_logs_channel?: string | null;
+  logsChannel?: string | null;
+  modLogsChannel?: string | null;
+  memberLogsChannel?: string | null;
 
   // Roles
-  muted_role?: string | null;
-  mod_role?: string | null;
-  admin_role?: string | null;
+  mutedRole?: string | null;
+  modRole?: string | null;
+  adminRole?: string | null;
 
   // Whitelist
   whitelist?: string[];
@@ -84,19 +84,19 @@ export interface GuildCreate {
  */
 export interface GuildUpdate {
   // Feature toggles
-  antinuke_enabled?: boolean;
-  logging_enabled?: boolean;
-  welcome_enabled?: boolean;
+  antinukeEnabled?: boolean;
+  loggingEnabled?: boolean;
+  welcomeEnabled?: boolean;
 
   // Logging channels
-  logs_channel?: string | null;
-  mod_logs_channel?: string | null;
-  member_logs_channel?: string | null;
+  logsChannel?: string | null;
+  modLogsChannel?: string | null;
+  memberLogsChannel?: string | null;
 
   // Roles
-  muted_role?: string | null;
-  mod_role?: string | null;
-  admin_role?: string | null;
+  mutedRole?: string | null;
+  modRole?: string | null;
+  adminRole?: string | null;
 
   // Whitelist
   whitelist?: string[];
@@ -109,6 +109,29 @@ export interface GuildSettings extends Guild {
   /** Whether the guild has any configuration beyond defaults */
   isConfigured: boolean;
 }
+
+/**
+ * Default guild settings used when creating a new guild
+ */
+export const DEFAULT_GUILD_SETTINGS: Omit<GuildCreate, "id"> = {
+  // Feature toggles
+  antinukeEnabled: false,
+  loggingEnabled: true,
+  welcomeEnabled: false,
+
+  // Logging channels
+  logsChannel: null,
+  modLogsChannel: null,
+  memberLogsChannel: null,
+
+  // Roles
+  mutedRole: null,
+  modRole: null,
+  adminRole: null,
+
+  // Whitelist
+  whitelist: [],
+};
 
 // ============================================================================
 // Audit Log Types
@@ -141,10 +164,10 @@ export type AuditAction =
  * Audit log entry for creation
  */
 export interface AuditLogCreate {
-  guild_id: string;
+  guildId: string;
   action: AuditAction | string;
   executor: string;
-  target_id?: string | null;
+  targetId?: string | null;
   reason?: string | null;
   metadata?: unknown;
 }
@@ -153,10 +176,10 @@ export interface AuditLogCreate {
  * Audit log query filters
  */
 export interface AuditLogFilters {
-  guild_id?: string;
+  guildId?: string;
   action?: AuditAction | string;
   executor?: string;
-  target_id?: string;
+  targetId?: string;
   startDate?: Date;
   endDate?: Date;
   limit?: number;

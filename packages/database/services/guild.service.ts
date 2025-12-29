@@ -10,31 +10,9 @@ import type {
   GuildSettings,
   ServiceResult,
 } from "../types/index.js";
+import { DEFAULT_GUILD_SETTINGS } from "../types/index.js";
 import { LRUCache } from "../utils/cache.js";
 import { safeExecute, withRetry } from "../utils/connection.js";
-
-/**
- * Default guild settings used when creating a new guild
- */
-export const DEFAULT_GUILD_SETTINGS: Omit<GuildCreate, "id"> = {
-  // Feature toggles
-  antinuke_enabled: false,
-  logging_enabled: true,
-  welcome_enabled: false,
-
-  // Logging channels
-  logs_channel: null,
-  mod_logs_channel: null,
-  member_logs_channel: null,
-
-  // Roles
-  muted_role: null,
-  mod_role: null,
-  admin_role: null,
-
-  // Whitelist
-  whitelist: [],
-};
 
 /**
  * GuildService class for managing guild settings in the database
@@ -117,17 +95,17 @@ export class GuildService {
       data: {
         id: data.id,
         // Feature toggles
-        antinuke_enabled: data.antinuke_enabled ?? DEFAULT_GUILD_SETTINGS.antinuke_enabled,
-        logging_enabled: data.logging_enabled ?? DEFAULT_GUILD_SETTINGS.logging_enabled,
-        welcome_enabled: data.welcome_enabled ?? DEFAULT_GUILD_SETTINGS.welcome_enabled,
+        antinukeEnabled: data.antinukeEnabled ?? DEFAULT_GUILD_SETTINGS.antinukeEnabled,
+        loggingEnabled: data.loggingEnabled ?? DEFAULT_GUILD_SETTINGS.loggingEnabled,
+        welcomeEnabled: data.welcomeEnabled ?? DEFAULT_GUILD_SETTINGS.welcomeEnabled,
         // Logging channels
-        logs_channel: data.logs_channel ?? DEFAULT_GUILD_SETTINGS.logs_channel,
-        mod_logs_channel: data.mod_logs_channel ?? DEFAULT_GUILD_SETTINGS.mod_logs_channel,
-        member_logs_channel: data.member_logs_channel ?? DEFAULT_GUILD_SETTINGS.member_logs_channel,
+        logsChannel: data.logsChannel ?? DEFAULT_GUILD_SETTINGS.logsChannel,
+        modLogsChannel: data.modLogsChannel ?? DEFAULT_GUILD_SETTINGS.modLogsChannel,
+        memberLogsChannel: data.memberLogsChannel ?? DEFAULT_GUILD_SETTINGS.memberLogsChannel,
         // Roles
-        muted_role: data.muted_role ?? DEFAULT_GUILD_SETTINGS.muted_role,
-        mod_role: data.mod_role ?? DEFAULT_GUILD_SETTINGS.mod_role,
-        admin_role: data.admin_role ?? DEFAULT_GUILD_SETTINGS.admin_role,
+        mutedRole: data.mutedRole ?? DEFAULT_GUILD_SETTINGS.mutedRole,
+        modRole: data.modRole ?? DEFAULT_GUILD_SETTINGS.modRole,
+        adminRole: data.adminRole ?? DEFAULT_GUILD_SETTINGS.adminRole,
         // Whitelist
         whitelist: data.whitelist ?? DEFAULT_GUILD_SETTINGS.whitelist,
       },
@@ -178,17 +156,17 @@ export class GuildService {
       create: {
         id: guildId,
         // Feature toggles
-        antinuke_enabled: data.antinuke_enabled ?? DEFAULT_GUILD_SETTINGS.antinuke_enabled,
-        logging_enabled: data.logging_enabled ?? DEFAULT_GUILD_SETTINGS.logging_enabled,
-        welcome_enabled: data.welcome_enabled ?? DEFAULT_GUILD_SETTINGS.welcome_enabled,
+        antinukeEnabled: data.antinukeEnabled ?? DEFAULT_GUILD_SETTINGS.antinukeEnabled,
+        loggingEnabled: data.loggingEnabled ?? DEFAULT_GUILD_SETTINGS.loggingEnabled,
+        welcomeEnabled: data.welcomeEnabled ?? DEFAULT_GUILD_SETTINGS.welcomeEnabled,
         // Logging channels
-        logs_channel: data.logs_channel ?? DEFAULT_GUILD_SETTINGS.logs_channel,
-        mod_logs_channel: data.mod_logs_channel ?? DEFAULT_GUILD_SETTINGS.mod_logs_channel,
-        member_logs_channel: data.member_logs_channel ?? DEFAULT_GUILD_SETTINGS.member_logs_channel,
+        logsChannel: data.logsChannel ?? DEFAULT_GUILD_SETTINGS.logsChannel,
+        modLogsChannel: data.modLogsChannel ?? DEFAULT_GUILD_SETTINGS.modLogsChannel,
+        memberLogsChannel: data.memberLogsChannel ?? DEFAULT_GUILD_SETTINGS.memberLogsChannel,
         // Roles
-        muted_role: data.muted_role ?? DEFAULT_GUILD_SETTINGS.muted_role,
-        mod_role: data.mod_role ?? DEFAULT_GUILD_SETTINGS.mod_role,
-        admin_role: data.admin_role ?? DEFAULT_GUILD_SETTINGS.admin_role,
+        mutedRole: data.mutedRole ?? DEFAULT_GUILD_SETTINGS.mutedRole,
+        modRole: data.modRole ?? DEFAULT_GUILD_SETTINGS.modRole,
+        adminRole: data.adminRole ?? DEFAULT_GUILD_SETTINGS.adminRole,
         // Whitelist
         whitelist: data.whitelist ?? DEFAULT_GUILD_SETTINGS.whitelist,
       },
@@ -291,7 +269,7 @@ export class GuildService {
    * @returns Updated guild or null if not found
    */
   async enableAntinuke(guildId: string): Promise<Guild | null> {
-    return this.update(guildId, { antinuke_enabled: true });
+    return this.update(guildId, { antinukeEnabled: true });
   }
 
   /**
@@ -300,7 +278,7 @@ export class GuildService {
    * @returns Updated guild or null if not found
    */
   async disableAntinuke(guildId: string): Promise<Guild | null> {
-    return this.update(guildId, { antinuke_enabled: false });
+    return this.update(guildId, { antinukeEnabled: false });
   }
 
   /**
@@ -310,7 +288,7 @@ export class GuildService {
    */
   async isAntinukeEnabled(guildId: string): Promise<boolean> {
     const guild = await this.get(guildId);
-    return guild?.antinuke_enabled ?? false;
+    return guild?.antinukeEnabled ?? false;
   }
 
   // ===========================================================================
@@ -324,7 +302,7 @@ export class GuildService {
    * @returns Updated guild or null if not found
    */
   async setLogsChannel(guildId: string, channelId: string | null): Promise<Guild | null> {
-    return this.update(guildId, { logs_channel: channelId });
+    return this.update(guildId, { logsChannel: channelId });
   }
 
   /**
@@ -334,7 +312,7 @@ export class GuildService {
    */
   async getLogsChannel(guildId: string): Promise<string | null> {
     const guild = await this.get(guildId);
-    return guild?.logs_channel ?? null;
+    return guild?.logsChannel ?? null;
   }
 
   /**
@@ -344,7 +322,7 @@ export class GuildService {
    * @returns Updated guild or null if not found
    */
   async setModLogsChannel(guildId: string, channelId: string | null): Promise<Guild | null> {
-    return this.update(guildId, { mod_logs_channel: channelId });
+    return this.update(guildId, { modLogsChannel: channelId });
   }
 
   /**
@@ -354,7 +332,7 @@ export class GuildService {
    * @returns Updated guild or null if not found
    */
   async setMemberLogsChannel(guildId: string, channelId: string | null): Promise<Guild | null> {
-    return this.update(guildId, { member_logs_channel: channelId });
+    return this.update(guildId, { memberLogsChannel: channelId });
   }
 
   // ===========================================================================
@@ -367,7 +345,7 @@ export class GuildService {
    * @returns Updated guild or null if not found
    */
   async enableLogging(guildId: string): Promise<Guild | null> {
-    return this.update(guildId, { logging_enabled: true });
+    return this.update(guildId, { loggingEnabled: true });
   }
 
   /**
@@ -376,7 +354,7 @@ export class GuildService {
    * @returns Updated guild or null if not found
    */
   async disableLogging(guildId: string): Promise<Guild | null> {
-    return this.update(guildId, { logging_enabled: false });
+    return this.update(guildId, { loggingEnabled: false });
   }
 
   /**
@@ -386,7 +364,7 @@ export class GuildService {
    */
   async isLoggingEnabled(guildId: string): Promise<boolean> {
     const guild = await this.get(guildId);
-    return guild?.logging_enabled ?? false;
+    return guild?.loggingEnabled ?? false;
   }
 
   // ===========================================================================
@@ -399,7 +377,7 @@ export class GuildService {
    * @returns Updated guild or null if not found
    */
   async enableWelcome(guildId: string): Promise<Guild | null> {
-    return this.update(guildId, { welcome_enabled: true });
+    return this.update(guildId, { welcomeEnabled: true });
   }
 
   /**
@@ -408,7 +386,7 @@ export class GuildService {
    * @returns Updated guild or null if not found
    */
   async disableWelcome(guildId: string): Promise<Guild | null> {
-    return this.update(guildId, { welcome_enabled: false });
+    return this.update(guildId, { welcomeEnabled: false });
   }
 
   /**
@@ -418,7 +396,7 @@ export class GuildService {
    */
   async isWelcomeEnabled(guildId: string): Promise<boolean> {
     const guild = await this.get(guildId);
-    return guild?.welcome_enabled ?? false;
+    return guild?.welcomeEnabled ?? false;
   }
 
   // ===========================================================================
@@ -432,7 +410,7 @@ export class GuildService {
    * @returns Updated guild or null if not found
    */
   async setMutedRole(guildId: string, roleId: string | null): Promise<Guild | null> {
-    return this.update(guildId, { muted_role: roleId });
+    return this.update(guildId, { mutedRole: roleId });
   }
 
   /**
@@ -442,7 +420,7 @@ export class GuildService {
    */
   async getMutedRole(guildId: string): Promise<string | null> {
     const guild = await this.get(guildId);
-    return guild?.muted_role ?? null;
+    return guild?.mutedRole ?? null;
   }
 
   /**
@@ -452,7 +430,7 @@ export class GuildService {
    * @returns Updated guild or null if not found
    */
   async setModRole(guildId: string, roleId: string | null): Promise<Guild | null> {
-    return this.update(guildId, { mod_role: roleId });
+    return this.update(guildId, { modRole: roleId });
   }
 
   /**
@@ -462,7 +440,7 @@ export class GuildService {
    */
   async getModRole(guildId: string): Promise<string | null> {
     const guild = await this.get(guildId);
-    return guild?.mod_role ?? null;
+    return guild?.modRole ?? null;
   }
 
   /**
@@ -472,7 +450,7 @@ export class GuildService {
    * @returns Updated guild or null if not found
    */
   async setAdminRole(guildId: string, roleId: string | null): Promise<Guild | null> {
-    return this.update(guildId, { admin_role: roleId });
+    return this.update(guildId, { adminRole: roleId });
   }
 
   /**
@@ -482,7 +460,7 @@ export class GuildService {
    */
   async getAdminRole(guildId: string): Promise<string | null> {
     const guild = await this.get(guildId);
-    return guild?.admin_role ?? null;
+    return guild?.adminRole ?? null;
   }
 
   // ===========================================================================
@@ -587,13 +565,12 @@ export class GuildService {
    * Convert a Guild to GuildSettings with computed properties
    */
   private toGuildSettings(guild: Guild): GuildSettings {
-    const hasFeatures = guild.antinuke_enabled || guild.welcome_enabled;
+    const hasFeatures = guild.antinukeEnabled || guild.welcomeEnabled;
     const hasChannels =
-      guild.logs_channel !== null ||
-      guild.mod_logs_channel !== null ||
-      guild.member_logs_channel !== null;
-    const hasRoles =
-      guild.muted_role !== null || guild.mod_role !== null || guild.admin_role !== null;
+      guild.logsChannel !== null ||
+      guild.modLogsChannel !== null ||
+      guild.memberLogsChannel !== null;
+    const hasRoles = guild.mutedRole !== null || guild.modRole !== null || guild.adminRole !== null;
     const hasWhitelist = guild.whitelist.length > 0;
 
     return {

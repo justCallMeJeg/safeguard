@@ -17,26 +17,26 @@ model Guild {
   id String @id // Discord Guild ID
 
   // Feature toggles
-  antinuke_enabled Boolean @default(false)
-  logging_enabled  Boolean @default(true)
-  welcome_enabled  Boolean @default(false)
+  antinukeEnabled Boolean @default(false) @map("antinuke_enabled")
+  loggingEnabled  Boolean @default(true) @map("logging_enabled")
+  welcomeEnabled  Boolean @default(false) @map("welcome_enabled")
 
   // Logging channels
-  logs_channel        String? // General bot logs
-  mod_logs_channel    String? // Moderation action logs
-  member_logs_channel String? // Join/leave logs
+  logsChannel       String? @map("logs_channel")
+  modLogsChannel    String? @map("mod_logs_channel")
+  memberLogsChannel String? @map("member_logs_channel")
 
   // Roles
-  muted_role String? // Role for muted members
-  mod_role   String? // Moderator role (permission level)
-  admin_role String? // Admin role (higher permission level)
+  mutedRole String? @map("muted_role")
+  modRole   String? @map("mod_role")
+  adminRole String? @map("admin_role")
 
   // Antinuke whitelist (user/role IDs exempt from checks)
   whitelist String[] @default([])
 
   // Timestamps
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   // Relations
   auditLogs AuditLog[]
@@ -44,16 +44,16 @@ model Guild {
 
 model AuditLog {
   id        Int      @id @default(autoincrement())
-  guild_id  String
+  guildId   String   @map("guild_id")
   action    String
   executor  String
-  target_id String?
+  targetId  String?  @map("target_id")
   reason    String?
   metadata  Json?
   timestamp DateTime @default(now())
 
-  guild Guild @relation(fields: [guild_id], references: [id], onDelete: Cascade)
+  guild Guild @relation(fields: [guildId], references: [id], onDelete: Cascade)
 
-  @@index([guild_id, timestamp])
+  @@index([guildId, timestamp])
   @@index([executor])
 }

@@ -29,10 +29,10 @@ export class AuditLogService {
    */
   async create(data: AuditLogCreate): Promise<AuditLog> {
     const createData: Parameters<typeof this.prisma.auditLog.create>[0]["data"] = {
-      guild_id: data.guild_id,
+      guildId: data.guildId,
       action: data.action,
       executor: data.executor,
-      target_id: data.target_id ?? null,
+      targetId: data.targetId ?? null,
       reason: data.reason ?? null,
     };
 
@@ -54,10 +54,10 @@ export class AuditLogService {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = entries.map((entry): any => {
       const item = {
-        guild_id: entry.guild_id,
+        guildId: entry.guildId,
         action: entry.action,
         executor: entry.executor,
-        target_id: entry.target_id ?? null,
+        targetId: entry.targetId ?? null,
         reason: entry.reason ?? null,
       };
       if (entry.metadata !== undefined) {
@@ -141,7 +141,7 @@ export class AuditLogService {
    * @returns Array of audit logs
    */
   async getByGuild(guildId: string, limit: number = 100): Promise<AuditLog[]> {
-    return this.query({ guild_id: guildId, limit });
+    return this.query({ guildId, limit });
   }
 
   /**
@@ -156,7 +156,7 @@ export class AuditLogService {
     guildId?: string,
     limit: number = 100
   ): Promise<AuditLog[]> {
-    return this.query({ executor: executorId, guild_id: guildId, limit });
+    return this.query({ executor: executorId, guildId, limit });
   }
 
   /**
@@ -167,7 +167,7 @@ export class AuditLogService {
    * @returns Array of audit logs
    */
   async getByAction(action: string, guildId?: string, limit: number = 100): Promise<AuditLog[]> {
-    return this.query({ action, guild_id: guildId, limit });
+    return this.query({ action, guildId, limit });
   }
 
   /**
@@ -178,7 +178,7 @@ export class AuditLogService {
    * @returns Array of audit logs
    */
   async getByDateRange(startDate: Date, endDate: Date, guildId?: string): Promise<AuditLog[]> {
-    return this.query({ startDate, endDate, guild_id: guildId });
+    return this.query({ startDate, endDate, guildId });
   }
 
   /**
@@ -192,7 +192,7 @@ export class AuditLogService {
 
     return this.prisma.auditLog.findMany({
       where: {
-        guild_id: guildId,
+        guildId,
         timestamp: { gte: startDate },
       },
       orderBy: { timestamp: "desc" },
@@ -217,7 +217,7 @@ export class AuditLogService {
 
     return this.prisma.auditLog.count({
       where: {
-        guild_id: guildId,
+        guildId,
         executor: executorId,
         ...(action && { action }),
         timestamp: { gte: startTime },
@@ -235,7 +235,7 @@ export class AuditLogService {
     const result = await this.prisma.auditLog.deleteMany({
       where: {
         timestamp: { lt: beforeDate },
-        ...(guildId && { guild_id: guildId }),
+        ...(guildId && { guildId }),
       },
     });
 
@@ -249,7 +249,7 @@ export class AuditLogService {
    */
   async deleteByGuild(guildId: string): Promise<number> {
     const result = await this.prisma.auditLog.deleteMany({
-      where: { guild_id: guildId },
+      where: { guildId },
     });
 
     return result.count;
@@ -268,22 +268,22 @@ export class AuditLogService {
   }> {
     const [totalLogs, logsLast24h, actionGroups, executorGroups] = await Promise.all([
       this.prisma.auditLog.count({
-        where: { guild_id: guildId },
+        where: { guildId },
       }),
       this.prisma.auditLog.count({
         where: {
-          guild_id: guildId,
+          guildId,
           timestamp: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
         },
       }),
       this.prisma.auditLog.groupBy({
         by: ["action"],
-        where: { guild_id: guildId },
+        where: { guildId },
         _count: { action: true },
       }),
       this.prisma.auditLog.groupBy({
         by: ["executor"],
-        where: { guild_id: guildId },
+        where: { guildId },
         _count: { executor: true },
         orderBy: { _count: { executor: "desc" } },
         take: 10,
@@ -341,10 +341,10 @@ export class AuditLogService {
    */
   private buildWhereClause(filters: AuditLogFilters) {
     return {
-      ...(filters.guild_id && { guild_id: filters.guild_id }),
+      ...(filters.guildId && { guildId: filters.guildId }),
       ...(filters.action && { action: filters.action }),
       ...(filters.executor && { executor: filters.executor }),
-      ...(filters.target_id && { target_id: filters.target_id }),
+      ...(filters.targetId && { targetId: filters.targetId }),
       ...((filters.startDate || filters.endDate) && {
         timestamp: {
           ...(filters.startDate && { gte: filters.startDate }),
