@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "_comment": "Safeguard Bot Configuration - See .env.example for sensitive values",
+
+  "bot": {
+    "_comment": "Bot credentials should be in .env, not here. This section is for non-sensitive bot settings.",
+    "ownerIds": []
+  },
+
+  "settings": {
+    "defaultPrefix": "!",
+
+    "colors": {
+      "primary": "0x5865F2",
+      "success": "0x57F287",
+      "error": "0xED4245",
+      "warning": "0xFEE75C",
+      "info": "0x5865F2",
+      "moderation": "0xEB459E"
+    },
+
+    "cooldowns": {
+      "defaultMs": 3000,
+      "bypassRoles": [],
+      "bypassUsers": []
+    },
+
+    "features": {
+      "hotReload": true,
+      "debugMode": false,
+      "verboseEvents": false,
+      "autoDeployDev": true
+    }
+  },
+
+  "logging": {
+    "level": "info",
+    "timestamps": true,
+    "colors": true,
+    "compact": false
+  }
+}
