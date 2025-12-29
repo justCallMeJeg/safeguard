@@ -8,6 +8,7 @@ import { loadEvents, setupHotReload } from "../handlers/eventHandler";
 import { loadCommands, loadContextMenus, setupCommandHotReload } from "../handlers/commandHandler";
 import { loadComponents, setupComponentHotReload } from "../handlers/componentHandler";
 import { deployToGuild } from "../handlers/deployCommands";
+import { config, type SafeguardConfig } from "../config";
 
 /**
  * Extended Discord.js Client for the Safeguard bot.
@@ -36,10 +37,13 @@ export class SafeguardClient extends Client {
   public cooldowns: CooldownManager = new CooldownManager();
 
   /** Whether hot reloading is enabled (dev mode) */
-  public hotReloadEnabled: boolean;
+  public hotReloadEnabled: boolean = false;
 
   /** Bot owner user IDs (for ownerOnly commands) */
   public ownerIds: Set<string> = new Set();
+
+  /** The loaded configuration */
+  private _config: SafeguardConfig | null = null;
 
   constructor(options?: Partial<ClientOptions>) {
     super({
@@ -52,25 +56,59 @@ export class SafeguardClient extends Client {
       ...options,
     });
 
-    // Enable hot reload in development
-    this.hotReloadEnabled = process.env.NODE_ENV !== "production";
-
     // Initialize logger
     Logger.init();
   }
 
   /**
-   * Start the bot by loading events, commands, components, and logging in
+   * Get the current configuration
+   */
+  get config(): SafeguardConfig {
+    if (!this._config) {
+      throw new Error("Configuration not loaded. Call start() first.");
+    }
+    return this._config;
+  }
+
+  /**
+   * Start the bot by loading config, events, commands, components, and logging in
    */
   async start(): Promise<void> {
-    const token = process.env.BOT_TOKEN;
-
-    if (!token) {
-      Logger.error("Client", "BOT_TOKEN environment variable is not set!");
-      process.exit(1);
-    }
-
     try {
+      // Initialize configuration first
+      Logger.info("Client", "Loading configuration...");
+      this._config = await config.initialize();
+
+      // Set properties from config
+      this.hotReloadEnabled =
+        process.env.NODE_ENV !== "production" && this._config.settings.features.hotReload;
+      this.ownerIds = new Set(this._config.bot.ownerIds);
+
+      // Validate required config
+      if (!this._config.bot.token) {
+        Logger.error("Client", "BOT_TOKEN is not configured!");
+        Logger.error("Client", "Set BOT_TOKEN in your .env file or config.json");
+        process.exit(1);
+      }
+
+      // Log configuration summary
+      Logger.debug(
+        "Client",
+        `Owner IDs: ${this.ownerIds.size > 0 ? [...this.ownerIds].join(", ") : "none"}`
+      );
+      Logger.debug("Client", `Hot reload: ${this.hotReloadEnabled ? "enabled" : "disabled"}`);
+      Logger.debug(
+        "Client",
+        `Debug mode: ${this._config.settings.features.debugMode ? "enabled" : "disabled"}`
+      );
+
+      // Listen for config changes
+      config.onChange((newConfig) => {
+        Logger.info("Client", "Configuration updated");
+        // Update runtime values that can change
+        this.ownerIds = new Set(newConfig.bot.ownerIds);
+      });
+
       // Load all events
       await loadEvents(this);
 
@@ -82,8 +120,8 @@ export class SafeguardClient extends Client {
       await loadComponents(this);
 
       // Auto-deploy to dev guild in development mode
-      if (this.hotReloadEnabled) {
-        const devGuildId = process.env.DEV_GUILD_ID;
+      if (this.hotReloadEnabled && this._config.settings.features.autoDeployDev) {
+        const devGuildId = this._config.bot.devGuildId;
         if (devGuildId) {
           await deployToGuild(this, devGuildId);
         } else {
@@ -99,7 +137,7 @@ export class SafeguardClient extends Client {
       }
 
       // Login to Discord
-      await this.login(token);
+      await this.login(this._config.bot.token);
     } catch (error) {
       Logger.error("Client", error instanceof Error ? error : new Error(String(error)));
       process.exit(1);
@@ -111,6 +149,9 @@ export class SafeguardClient extends Client {
    */
   async shutdown(): Promise<void> {
     Logger.warn("Client", "Shutting down...");
+
+    // Cleanup config manager
+    config.destroy();
 
     // Cleanup cooldown manager
     this.cooldowns.destroy();
