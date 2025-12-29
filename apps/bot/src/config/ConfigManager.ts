@@ -211,9 +211,11 @@ export class ConfigManager {
     if (value.toLowerCase() === "true") return true;
     if (value.toLowerCase() === "false") return false;
 
-    // Number
+    // Number - but NOT for large numbers (Discord snowflakes should stay as strings)
+    // Discord IDs are typically 17-20 digits, so we skip number conversion for anything > 15 digits
+    // JavaScript loses precision for integers > Number.MAX_SAFE_INTEGER (9007199254740991)
     const num = Number(value);
-    if (!isNaN(num) && value.trim() !== "") return num;
+    if (!isNaN(num) && value.trim() !== "" && value.length <= 15) return num;
 
     // Array (comma-separated)
     if (value.includes(",")) {
