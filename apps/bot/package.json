@@ -12,7 +12,8 @@
   "dependencies": {
     "@safeguard/database": "workspace:*",
     "consola": "^3.4.2",
-    "discord.js": "^14.25.1"
+    "discord.js": "^14.25.1",
+    "zod": "^4.2.1"
   },
   "devDependencies": {
     "@types/bun": "latest"
