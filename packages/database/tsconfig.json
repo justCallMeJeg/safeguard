@@ -2,7 +2,16 @@
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "types": ["node"]
+    "types": ["node"],
+    "moduleResolution": "NodeNext",
+    "module": "NodeNext"
   },
-  "include": ["index.ts", "prisma.config.ts", "generated/**/*.ts"]
+  "include": [
+    "index.ts",
+    "prisma.config.ts",
+    "generated/**/*.ts",
+    "types/**/*.ts",
+    "utils/**/*.ts",
+    "services/**/*.ts"
+  ]
 }
