@@ -10,6 +10,7 @@ import { loadComponents, setupComponentHotReload } from "../handlers/componentHa
 import { deployToGuild } from "../handlers/deployCommands";
 import { config, type SafeguardConfig } from "../config";
 import { GuildSettingsService } from "../services/GuildSettingsService";
+import { auditLogService, type AuditLogService } from "@safeguard/database";
 
 /**
  * Extended Discord.js Client for the Safeguard bot.
@@ -45,6 +46,9 @@ export class SafeguardClient extends Client {
 
   /** Guild settings service for per-guild configuration */
   public guildSettings: GuildSettingsService = GuildSettingsService.getInstance();
+
+  /** Audit log service for database logging */
+  public auditLogs: AuditLogService = auditLogService;
 
   /** The loaded configuration */
   private _config: SafeguardConfig | null = null;
