@@ -11,6 +11,7 @@ import { deployToGuild } from "../handlers/deployCommands";
 import { config, type SafeguardConfig } from "../config";
 import { GuildSettingsService } from "../services/GuildSettingsService";
 import { auditLogService, type AuditLogService } from "@safeguard/database";
+import { guildLogger, type GuildLogger } from "../services/GuildLogger";
 
 /**
  * Extended Discord.js Client for the Safeguard bot.
@@ -49,6 +50,9 @@ export class SafeguardClient extends Client {
 
   /** Audit log service for database logging */
   public auditLogs: AuditLogService = auditLogService;
+
+  /** Guild logger for Discord channel logging */
+  public guildLogger: GuildLogger = guildLogger;
 
   /** The loaded configuration */
   private _config: SafeguardConfig | null = null;

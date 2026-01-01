@@ -88,21 +88,28 @@ const command: SafeguardCommand = {
       // Log to Discord Channel (only if not self-logging spam)
       const settings = await client.guildSettings.get(guild.id);
       if (settings?.modLogsChannel && settings.modLogsChannel !== channel.id) {
-        const logChannel = await guild.channels.fetch(settings.modLogsChannel).catch(() => null);
-        if (logChannel && logChannel.isTextBased()) {
-          const logEmbed = Embeds.custom({
-            title: "🧹 Messages Purged",
-            fields: [
-              { name: "Channel", value: `<#${channel.id}>`, inline: true },
-              { name: "Moderator", value: `${interaction.user.tag}`, inline: true },
-              { name: "Amount", value: `${deleted.size}`, inline: true },
-              ...(user ? [{ name: "Filter User", value: `${user.tag}`, inline: true }] : []),
-            ],
-            color: Colors.Info,
-            timestamp: true,
-          });
-          await logChannel.send({ embeds: [logEmbed] }).catch(() => {});
-        }
+        const logEmbed = Embeds.custom({
+          title: "🧹 Messages Purged",
+          fields: [
+            { name: "Channel", value: `<#${channel.id}>`, inline: true },
+            { name: "Moderator", value: `${interaction.user.tag}`, inline: true },
+            { name: "Amount", value: `${deleted.size}`, inline: true },
+            ...(user ? [{ name: "Filter User", value: `${user.tag}`, inline: true }] : []),
+          ],
+          color: Colors.Info,
+          timestamp: true,
+        });
+
+        // Note: We still fetch settings above for the channel ID check,
+        // but prefer using GuildLogger for consistency and enable/disable checks
+        // However, GuildLogger doesn't support the "different channel" check internally.
+        // For purge, we might just double check or let GuildLogger handle it.
+        // But since we want to avoid logging TO the channel we just purged (if it happens to be the log channel),
+        // we keep the check.
+        // ACTUALLY, GuildLogger just logs to modLogsChannel. If modLogsChannel IS the current channel, it's fine
+        // (the log message comes after the purge).
+
+        await client.guildLogger.logModeration(guild, logEmbed);
       }
 
       await interaction.editReply({

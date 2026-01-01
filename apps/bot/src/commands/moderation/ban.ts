@@ -97,7 +97,7 @@ const command: SafeguardCommand = {
     // Perform Ban
     try {
       await guild.members.ban(user, { reason, deleteMessageSeconds: deleteSeconds });
-    } catch (error) {
+    } catch {
       await interaction.editReply({
         embeds: [Embeds.error("Failed to ban the user. Please check my permissions.")],
       });
@@ -119,24 +119,19 @@ const command: SafeguardCommand = {
     }
 
     // Log to Discord Channel
-    const settings = await client.guildSettings.get(guild.id);
-    if (settings?.modLogsChannel) {
-      const logChannel = await guild.channels.fetch(settings.modLogsChannel).catch(() => null);
-      if (logChannel && logChannel.isTextBased()) {
-        const logEmbed = Embeds.custom({
-          title: "🔨 Member Banned",
-          fields: [
-            { name: "User", value: `${user.tag} (${user.id})`, inline: true },
-            { name: "Moderator", value: `${interaction.user.tag}`, inline: true },
-            { name: "Reason", value: reason, inline: false },
-          ],
-          color: Colors.Error,
-          timestamp: true,
-          thumbnail: user.displayAvatarURL(),
-        });
-        await logChannel.send({ embeds: [logEmbed] }).catch(() => {});
-      }
-    }
+    const logEmbed = Embeds.custom({
+      title: "🔨 Member Banned",
+      fields: [
+        { name: "User", value: `${user.tag} (${user.id})`, inline: true },
+        { name: "Moderator", value: `${interaction.user.tag}`, inline: true },
+        { name: "Reason", value: reason, inline: false },
+      ],
+      color: Colors.Error,
+      timestamp: true,
+      thumbnail: user.displayAvatarURL(),
+    });
+
+    await client.guildLogger.logModeration(guild, logEmbed);
 
     // Confirm to Interaction
     await interaction.editReply({
