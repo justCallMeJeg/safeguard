@@ -180,12 +180,21 @@ const command: SafeguardCommand = {
     const subcommand = interaction.options.getSubcommand();
 
     // Get or create guild settings
-    let settings: Guild;
+    // Get guild settings
+    let settings: Guild | null = null;
     try {
-      settings = await client.guildSettings.getOrCreate(guildId);
-    } catch (_error) {
+      settings = await client.guildSettings.get(guildId);
+    } catch {
+      // Fallback
+    }
+
+    if (!settings) {
       await interaction.editReply({
-        embeds: [Embeds.error("Failed to load server settings. Please try again.")],
+        embeds: [
+          Embeds.info(
+            "**Server Not Configured**\n\nThis server has not been configured yet. Please run `/setup` to initialize the bot."
+          ),
+        ],
       });
       return;
     }

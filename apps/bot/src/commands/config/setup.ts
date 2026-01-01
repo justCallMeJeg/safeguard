@@ -8,6 +8,7 @@ import {
   ChannelSelectMenuBuilder,
   StringSelectMenuBuilder,
   ChannelType,
+  ComponentType,
   type ChatInputCommandInteraction,
   type MessageComponentInteraction,
 } from "discord.js";
@@ -41,9 +42,64 @@ const command: SafeguardCommand = {
     const guildId = interaction.guildId!;
 
     // Initial fetch of settings to show defaults
-    let currentSettings: Guild;
+    let currentSettings: Guild | null = null;
+
     try {
-      currentSettings = await client.guildSettings.getOrCreate(guildId);
+      // Check if settings already exist
+      currentSettings = await client.guildSettings.get(guildId);
+
+      if (currentSettings) {
+        // Warn user that config exists
+        const confirmEmbed = Embeds.warning(
+          "**Configuration Already Exists**\n\nThis server is already configured. Running the setup wizard will overwrite your existing settings.\n\nDo you want to continue?"
+        );
+
+        const confirmRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId("setup_confirm_continue")
+            .setLabel("Continue")
+            .setStyle(ButtonStyle.Danger),
+          new ButtonBuilder()
+            .setCustomId("setup_confirm_cancel")
+            .setLabel("Cancel")
+            .setStyle(ButtonStyle.Secondary)
+        );
+
+        const response = await interaction.editReply({
+          embeds: [confirmEmbed],
+          components: [confirmRow],
+        });
+
+        try {
+          const confirmation = await response.awaitMessageComponent({
+            filter: (i) => i.user.id === interaction.user.id,
+            time: 30_000,
+            componentType: ComponentType.Button,
+          });
+
+          if (confirmation.customId === "setup_confirm_cancel") {
+            await confirmation.update({
+              content: "Setup cancelled.",
+              embeds: [],
+              components: [],
+            });
+            return;
+          }
+
+          // User clicked continue
+          await confirmation.deferUpdate();
+        } catch {
+          await interaction.editReply({
+            content: "Setup timed out.",
+            embeds: [],
+            components: [],
+          });
+          return;
+        }
+      } else {
+        // Create default settings for the wizard session
+        currentSettings = await client.guildSettings.getOrCreate(guildId);
+      }
     } catch {
       await interaction.editReply({
         embeds: [Embeds.error("Failed to initialize setup. Please try again.")],
