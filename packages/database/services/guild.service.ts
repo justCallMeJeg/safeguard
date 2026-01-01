@@ -1,5 +1,6 @@
 /**
  * Guild Service - Handles all guild-related database operations
+ * Extends BaseRepository for resilient database operations
  */
 
 import type { PrismaClient } from "../generated/prisma/client.js";
@@ -12,23 +13,37 @@ import type {
 } from "../types/index.js";
 import { DEFAULT_GUILD_SETTINGS } from "../types/index.js";
 import { LRUCache } from "../utils/cache.js";
-import { safeExecute, withRetry } from "../utils/connection.js";
+import { BaseRepository, type RepositoryConfig } from "../repositories/base.repository.js";
+
+/**
+ * Configuration options for GuildService
+ */
+export interface GuildServiceConfig extends RepositoryConfig {
+  /** Maximum cache size (default: 1000) */
+  cacheMaxSize?: number;
+  /** Cache TTL in ms (default: 300000 = 5 minutes) */
+  cacheTtl?: number;
+}
 
 /**
  * GuildService class for managing guild settings in the database
+ * Extends BaseRepository for automatic retry, timeout, and circuit breaker protection
  */
-export class GuildService {
-  private prisma: PrismaClient;
+export class GuildService extends BaseRepository<Guild> {
   private cache: LRUCache<string, Guild>;
 
-  constructor(prisma: PrismaClient, cacheOptions?: { maxSize?: number; ttl?: number }) {
-    this.prisma = prisma;
+  constructor(prisma: PrismaClient, config?: GuildServiceConfig) {
+    super(prisma, config);
     this.cache = new LRUCache<string, Guild>({
-      maxSize: cacheOptions?.maxSize ?? 1000,
-      ttl: cacheOptions?.ttl ?? 5 * 60 * 1000, // 5 minutes default
+      maxSize: config?.cacheMaxSize ?? 1000,
+      ttl: config?.cacheTtl ?? 5 * 60 * 1000, // 5 minutes default
       updateOnAccess: true,
     });
   }
+
+  // ===========================================================================
+  // Core CRUD Operations (with resilience)
+  // ===========================================================================
 
   /**
    * Get guild settings by ID
@@ -42,10 +57,12 @@ export class GuildService {
       return cached;
     }
 
-    // Fetch from database
-    const guild = await this.prisma.guild.findUnique({
-      where: { id: guildId },
-    });
+    // Fetch from database with resilience
+    const guild = await this.executeWithResilience(() =>
+      this.prisma.guild.findUnique({
+        where: { id: guildId },
+      })
+    );
 
     // Cache the result if found
     if (guild) {
@@ -91,25 +108,27 @@ export class GuildService {
    * @returns Created guild
    */
   async create(data: GuildCreate): Promise<Guild> {
-    const guild = await this.prisma.guild.create({
-      data: {
-        id: data.id,
-        // Feature toggles
-        antinukeEnabled: data.antinukeEnabled ?? DEFAULT_GUILD_SETTINGS.antinukeEnabled,
-        loggingEnabled: data.loggingEnabled ?? DEFAULT_GUILD_SETTINGS.loggingEnabled,
-        welcomeEnabled: data.welcomeEnabled ?? DEFAULT_GUILD_SETTINGS.welcomeEnabled,
-        // Logging channels
-        logsChannel: data.logsChannel ?? DEFAULT_GUILD_SETTINGS.logsChannel,
-        modLogsChannel: data.modLogsChannel ?? DEFAULT_GUILD_SETTINGS.modLogsChannel,
-        memberLogsChannel: data.memberLogsChannel ?? DEFAULT_GUILD_SETTINGS.memberLogsChannel,
-        // Roles
-        mutedRole: data.mutedRole ?? DEFAULT_GUILD_SETTINGS.mutedRole,
-        modRole: data.modRole ?? DEFAULT_GUILD_SETTINGS.modRole,
-        adminRole: data.adminRole ?? DEFAULT_GUILD_SETTINGS.adminRole,
-        // Whitelist
-        whitelist: data.whitelist ?? DEFAULT_GUILD_SETTINGS.whitelist,
-      },
-    });
+    const guild = await this.executeWithResilience(() =>
+      this.prisma.guild.create({
+        data: {
+          id: data.id,
+          // Feature toggles
+          antinukeEnabled: data.antinukeEnabled ?? DEFAULT_GUILD_SETTINGS.antinukeEnabled,
+          loggingEnabled: data.loggingEnabled ?? DEFAULT_GUILD_SETTINGS.loggingEnabled,
+          welcomeEnabled: data.welcomeEnabled ?? DEFAULT_GUILD_SETTINGS.welcomeEnabled,
+          // Logging channels
+          logsChannel: data.logsChannel ?? DEFAULT_GUILD_SETTINGS.logsChannel,
+          modLogsChannel: data.modLogsChannel ?? DEFAULT_GUILD_SETTINGS.modLogsChannel,
+          memberLogsChannel: data.memberLogsChannel ?? DEFAULT_GUILD_SETTINGS.memberLogsChannel,
+          // Roles
+          mutedRole: data.mutedRole ?? DEFAULT_GUILD_SETTINGS.mutedRole,
+          modRole: data.modRole ?? DEFAULT_GUILD_SETTINGS.modRole,
+          adminRole: data.adminRole ?? DEFAULT_GUILD_SETTINGS.adminRole,
+          // Whitelist
+          whitelist: data.whitelist ?? DEFAULT_GUILD_SETTINGS.whitelist,
+        },
+      })
+    );
 
     // Cache the new guild
     this.cache.set(guild.id, guild);
@@ -125,10 +144,12 @@ export class GuildService {
    */
   async update(guildId: string, data: GuildUpdate): Promise<Guild | null> {
     try {
-      const guild = await this.prisma.guild.update({
-        where: { id: guildId },
-        data,
-      });
+      const guild = await this.executeWithResilience(() =>
+        this.prisma.guild.update({
+          where: { id: guildId },
+          data,
+        })
+      );
 
       // Update cache
       this.cache.set(guildId, guild);
@@ -150,27 +171,29 @@ export class GuildService {
    * @returns Upserted guild
    */
   async upsert(guildId: string, data: GuildUpdate): Promise<Guild> {
-    const guild = await this.prisma.guild.upsert({
-      where: { id: guildId },
-      update: data,
-      create: {
-        id: guildId,
-        // Feature toggles
-        antinukeEnabled: data.antinukeEnabled ?? DEFAULT_GUILD_SETTINGS.antinukeEnabled,
-        loggingEnabled: data.loggingEnabled ?? DEFAULT_GUILD_SETTINGS.loggingEnabled,
-        welcomeEnabled: data.welcomeEnabled ?? DEFAULT_GUILD_SETTINGS.welcomeEnabled,
-        // Logging channels
-        logsChannel: data.logsChannel ?? DEFAULT_GUILD_SETTINGS.logsChannel,
-        modLogsChannel: data.modLogsChannel ?? DEFAULT_GUILD_SETTINGS.modLogsChannel,
-        memberLogsChannel: data.memberLogsChannel ?? DEFAULT_GUILD_SETTINGS.memberLogsChannel,
-        // Roles
-        mutedRole: data.mutedRole ?? DEFAULT_GUILD_SETTINGS.mutedRole,
-        modRole: data.modRole ?? DEFAULT_GUILD_SETTINGS.modRole,
-        adminRole: data.adminRole ?? DEFAULT_GUILD_SETTINGS.adminRole,
-        // Whitelist
-        whitelist: data.whitelist ?? DEFAULT_GUILD_SETTINGS.whitelist,
-      },
-    });
+    const guild = await this.executeWithResilience(() =>
+      this.prisma.guild.upsert({
+        where: { id: guildId },
+        update: data,
+        create: {
+          id: guildId,
+          // Feature toggles
+          antinukeEnabled: data.antinukeEnabled ?? DEFAULT_GUILD_SETTINGS.antinukeEnabled,
+          loggingEnabled: data.loggingEnabled ?? DEFAULT_GUILD_SETTINGS.loggingEnabled,
+          welcomeEnabled: data.welcomeEnabled ?? DEFAULT_GUILD_SETTINGS.welcomeEnabled,
+          // Logging channels
+          logsChannel: data.logsChannel ?? DEFAULT_GUILD_SETTINGS.logsChannel,
+          modLogsChannel: data.modLogsChannel ?? DEFAULT_GUILD_SETTINGS.modLogsChannel,
+          memberLogsChannel: data.memberLogsChannel ?? DEFAULT_GUILD_SETTINGS.memberLogsChannel,
+          // Roles
+          mutedRole: data.mutedRole ?? DEFAULT_GUILD_SETTINGS.mutedRole,
+          modRole: data.modRole ?? DEFAULT_GUILD_SETTINGS.modRole,
+          adminRole: data.adminRole ?? DEFAULT_GUILD_SETTINGS.adminRole,
+          // Whitelist
+          whitelist: data.whitelist ?? DEFAULT_GUILD_SETTINGS.whitelist,
+        },
+      })
+    );
 
     // Update cache
     this.cache.set(guildId, guild);
@@ -185,9 +208,11 @@ export class GuildService {
    */
   async delete(guildId: string): Promise<boolean> {
     try {
-      await this.prisma.guild.delete({
-        where: { id: guildId },
-      });
+      await this.executeWithResilience(() =>
+        this.prisma.guild.delete({
+          where: { id: guildId },
+        })
+      );
 
       // Remove from cache
       this.cache.delete(guildId);
@@ -486,11 +511,13 @@ export class GuildService {
       }
     }
 
-    // Fetch uncached from database
+    // Fetch uncached from database with resilience
     if (uncachedIds.length > 0) {
-      const guilds = await this.prisma.guild.findMany({
-        where: { id: { in: uncachedIds } },
-      });
+      const guilds = await this.executeWithResilience(() =>
+        this.prisma.guild.findMany({
+          where: { id: { in: uncachedIds } },
+        })
+      );
 
       for (const guild of guilds) {
         this.cache.set(guild.id, guild);
@@ -506,11 +533,11 @@ export class GuildService {
    * @returns Total count
    */
   async count(): Promise<number> {
-    return this.prisma.guild.count();
+    return this.executeWithResilience(() => this.prisma.guild.count());
   }
 
   // ===========================================================================
-  // Safe Operations (with error handling)
+  // Safe Operations (with error handling) - Preserved for backward compatibility
   // ===========================================================================
 
   /**
@@ -519,7 +546,7 @@ export class GuildService {
    * @returns ServiceResult with guild or error
    */
   async safeGet(guildId: string): Promise<ServiceResult<Guild | null>> {
-    return safeExecute(() => this.get(guildId));
+    return this.executeSafe(() => this.get(guildId));
   }
 
   /**
@@ -528,7 +555,7 @@ export class GuildService {
    * @returns Guild settings
    */
   async safeGetOrCreate(guildId: string): Promise<ServiceResult<Guild>> {
-    return safeExecute(() => withRetry(() => this.getOrCreate(guildId)));
+    return this.executeSafe(() => this.getOrCreate(guildId));
   }
 
   // ===========================================================================
@@ -577,17 +604,5 @@ export class GuildService {
       ...guild,
       isConfigured: hasFeatures || hasChannels || hasRoles || hasWhitelist,
     };
-  }
-
-  /**
-   * Check if an error is a Prisma "not found" error
-   */
-  private isPrismaNotFoundError(error: unknown): boolean {
-    return (
-      typeof error === "object" &&
-      error !== null &&
-      "code" in error &&
-      (error as { code: string }).code === "P2025"
-    );
   }
 }

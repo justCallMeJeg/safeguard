@@ -35,6 +35,12 @@ export * from "./types/index.js";
 export * from "./utils/index.js";
 
 // ============================================================================
+// Repositories
+// ============================================================================
+
+export * from "./repositories/index.js";
+
+// ============================================================================
 // Services
 // ============================================================================
 
@@ -46,6 +52,7 @@ export * from "./services/index.js";
 
 import { GuildService } from "./services/guild.service.js";
 import { AuditLogService } from "./services/audit-log.service.js";
+import { gracefulShutdown } from "./utils/connection.js";
 
 const globalForServices = globalThis as unknown as {
   guildService: GuildService;
@@ -65,4 +72,21 @@ export const auditLogService = globalForServices.auditLogService ?? new AuditLog
 if (process.env.NODE_ENV !== "production") {
   globalForServices.guildService = guildService;
   globalForServices.auditLogService = auditLogService;
+}
+
+// ============================================================================
+// Lifecycle Management
+// ============================================================================
+
+/**
+ * Gracefully shutdown database connections
+ * Call this when your application is shutting down
+ */
+export async function shutdown(): Promise<void> {
+  // Reset circuit breakers
+  guildService.resetCircuit();
+  auditLogService.resetCircuit();
+
+  // Disconnect Prisma
+  await gracefulShutdown(prisma);
 }

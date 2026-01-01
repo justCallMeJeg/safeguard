@@ -5,6 +5,31 @@
 import type { PrismaClient } from "../generated/prisma/client.js";
 import type { HealthCheckResult } from "../types/index.js";
 
+// Re-export circuit breaker utilities from base repository
+export { CircuitBreaker, CircuitState, isRetryableError } from "../repositories/base.repository.js";
+
+/**
+ * Gracefully disconnect the Prisma client
+ * @param prisma - The Prisma client instance
+ * @param timeoutMs - Maximum time to wait for disconnect (default: 5000ms)
+ */
+export async function gracefulShutdown(
+  prisma: PrismaClient,
+  timeoutMs: number = 5000
+): Promise<void> {
+  try {
+    const timeoutPromise = new Promise<never>((_, reject) => {
+      setTimeout(() => reject(new Error(`Shutdown timed out after ${timeoutMs}ms`)), timeoutMs);
+    });
+
+    await Promise.race([prisma.$disconnect(), timeoutPromise]);
+  } catch (error) {
+    // Force disconnect on timeout
+    console.error("Graceful shutdown failed:", error);
+    await prisma.$disconnect().catch(() => {});
+  }
+}
+
 /**
  * Check if the database connection is healthy
  * @param prisma - The Prisma client instance
