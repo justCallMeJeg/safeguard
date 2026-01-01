@@ -1,5 +1,6 @@
 /**
  * Audit Log Service - Handles all audit log database operations
+ * Extends BaseRepository for resilient database operations
  */
 
 import type { PrismaClient } from "../generated/prisma/client.js";
@@ -10,17 +11,35 @@ import type {
   PaginatedResult,
   ServiceResult,
 } from "../types/index.js";
-import { safeExecute } from "../utils/connection.js";
+import { BaseRepository, type RepositoryConfig } from "../repositories/base.repository.js";
+
+/**
+ * Configuration options for AuditLogService
+ */
+export interface AuditLogServiceConfig extends RepositoryConfig {
+  /** Default query limit (default: 100) */
+  defaultQueryLimit?: number;
+  /** Extended timeout for statistics queries in ms (default: 30000) */
+  statsTimeoutMs?: number;
+}
 
 /**
  * AuditLogService class for managing audit logs in the database
+ * Extends BaseRepository for automatic retry, timeout, and circuit breaker protection
  */
-export class AuditLogService {
-  private prisma: PrismaClient;
+export class AuditLogService extends BaseRepository<AuditLog> {
+  private readonly defaultQueryLimit: number;
+  private readonly statsTimeoutMs: number;
 
-  constructor(prisma: PrismaClient) {
-    this.prisma = prisma;
+  constructor(prisma: PrismaClient, config?: AuditLogServiceConfig) {
+    super(prisma, config);
+    this.defaultQueryLimit = config?.defaultQueryLimit ?? 100;
+    this.statsTimeoutMs = config?.statsTimeoutMs ?? 30000;
   }
+
+  // ===========================================================================
+  // Create Operations
+  // ===========================================================================
 
   /**
    * Create a new audit log entry
@@ -42,7 +61,7 @@ export class AuditLogService {
       >[0]["data"]["metadata"];
     }
 
-    return this.prisma.auditLog.create({ data: createData });
+    return this.executeWithResilience(() => this.prisma.auditLog.create({ data: createData }));
   }
 
   /**
@@ -66,9 +85,15 @@ export class AuditLogService {
       return item;
     });
 
-    const result = await this.prisma.auditLog.createMany({ data });
+    const result = await this.executeWithResilience(() =>
+      this.prisma.auditLog.createMany({ data })
+    );
     return result.count;
   }
+
+  // ===========================================================================
+  // Read Operations
+  // ===========================================================================
 
   /**
    * Get an audit log entry by ID
@@ -76,9 +101,11 @@ export class AuditLogService {
    * @returns Audit log entry or null
    */
   async getById(id: number): Promise<AuditLog | null> {
-    return this.prisma.auditLog.findUnique({
-      where: { id },
-    });
+    return this.executeWithResilience(() =>
+      this.prisma.auditLog.findUnique({
+        where: { id },
+      })
+    );
   }
 
   /**
@@ -89,12 +116,14 @@ export class AuditLogService {
   async query(filters: AuditLogFilters = {}): Promise<AuditLog[]> {
     const where = this.buildWhereClause(filters);
 
-    return this.prisma.auditLog.findMany({
-      where,
-      orderBy: { timestamp: "desc" },
-      take: filters.limit ?? 100,
-      skip: filters.offset ?? 0,
-    });
+    return this.executeWithResilience(() =>
+      this.prisma.auditLog.findMany({
+        where,
+        orderBy: { timestamp: "desc" },
+        take: filters.limit ?? this.defaultQueryLimit,
+        skip: filters.offset ?? 0,
+      })
+    );
   }
 
   /**
@@ -111,15 +140,17 @@ export class AuditLogService {
 
     const where = this.buildWhereClause(filters);
 
-    const [data, total] = await Promise.all([
-      this.prisma.auditLog.findMany({
-        where,
-        orderBy: { timestamp: "desc" },
-        take: pageSize,
-        skip,
-      }),
-      this.prisma.auditLog.count({ where }),
-    ]);
+    const [data, total] = await this.executeWithResilience(() =>
+      Promise.all([
+        this.prisma.auditLog.findMany({
+          where,
+          orderBy: { timestamp: "desc" },
+          take: pageSize,
+          skip,
+        }),
+        this.prisma.auditLog.count({ where }),
+      ])
+    );
 
     const totalPages = Math.ceil(total / pageSize);
 
@@ -190,13 +221,15 @@ export class AuditLogService {
   async getRecent(guildId: string, minutes: number = 5): Promise<AuditLog[]> {
     const startDate = new Date(Date.now() - minutes * 60 * 1000);
 
-    return this.prisma.auditLog.findMany({
-      where: {
-        guildId,
-        timestamp: { gte: startDate },
-      },
-      orderBy: { timestamp: "desc" },
-    });
+    return this.executeWithResilience(() =>
+      this.prisma.auditLog.findMany({
+        where: {
+          guildId,
+          timestamp: { gte: startDate },
+        },
+        orderBy: { timestamp: "desc" },
+      })
+    );
   }
 
   /**
@@ -215,15 +248,21 @@ export class AuditLogService {
   ): Promise<number> {
     const startTime = new Date(Date.now() - windowMs);
 
-    return this.prisma.auditLog.count({
-      where: {
-        guildId,
-        executor: executorId,
-        ...(action && { action }),
-        timestamp: { gte: startTime },
-      },
-    });
+    return this.executeWithResilience(() =>
+      this.prisma.auditLog.count({
+        where: {
+          guildId,
+          executor: executorId,
+          ...(action && { action }),
+          timestamp: { gte: startTime },
+        },
+      })
+    );
   }
+
+  // ===========================================================================
+  // Delete Operations
+  // ===========================================================================
 
   /**
    * Delete audit logs older than a specified date
@@ -232,12 +271,14 @@ export class AuditLogService {
    * @returns Count of deleted entries
    */
   async deleteOlderThan(beforeDate: Date, guildId?: string): Promise<number> {
-    const result = await this.prisma.auditLog.deleteMany({
-      where: {
-        timestamp: { lt: beforeDate },
-        ...(guildId && { guildId }),
-      },
-    });
+    const result = await this.executeWithResilience(() =>
+      this.prisma.auditLog.deleteMany({
+        where: {
+          timestamp: { lt: beforeDate },
+          ...(guildId && { guildId }),
+        },
+      })
+    );
 
     return result.count;
   }
@@ -248,12 +289,18 @@ export class AuditLogService {
    * @returns Count of deleted entries
    */
   async deleteByGuild(guildId: string): Promise<number> {
-    const result = await this.prisma.auditLog.deleteMany({
-      where: { guildId },
-    });
+    const result = await this.executeWithResilience(() =>
+      this.prisma.auditLog.deleteMany({
+        where: { guildId },
+      })
+    );
 
     return result.count;
   }
+
+  // ===========================================================================
+  // Statistics (with extended timeout)
+  // ===========================================================================
 
   /**
    * Get statistics for a guild
@@ -266,29 +313,34 @@ export class AuditLogService {
     topExecutors: Array<{ executor: string; count: number }>;
     logsLast24h: number;
   }> {
-    const [totalLogs, logsLast24h, actionGroups, executorGroups] = await Promise.all([
-      this.prisma.auditLog.count({
-        where: { guildId },
-      }),
-      this.prisma.auditLog.count({
-        where: {
-          guildId,
-          timestamp: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
-        },
-      }),
-      this.prisma.auditLog.groupBy({
-        by: ["action"],
-        where: { guildId },
-        _count: { action: true },
-      }),
-      this.prisma.auditLog.groupBy({
-        by: ["executor"],
-        where: { guildId },
-        _count: { executor: true },
-        orderBy: { _count: { executor: "desc" } },
-        take: 10,
-      }),
-    ]);
+    // Use extended timeout for complex aggregation queries
+    const [totalLogs, logsLast24h, actionGroups, executorGroups] = await this.executeWithResilience(
+      () =>
+        Promise.all([
+          this.prisma.auditLog.count({
+            where: { guildId },
+          }),
+          this.prisma.auditLog.count({
+            where: {
+              guildId,
+              timestamp: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) },
+            },
+          }),
+          this.prisma.auditLog.groupBy({
+            by: ["action"],
+            where: { guildId },
+            _count: { action: true },
+          }),
+          this.prisma.auditLog.groupBy({
+            by: ["executor"],
+            where: { guildId },
+            _count: { executor: true },
+            orderBy: { _count: { executor: "desc" } },
+            take: 10,
+          }),
+        ]),
+      { timeoutMs: this.statsTimeoutMs }
+    );
 
     const actionBreakdown: Record<string, number> = {};
     for (const group of actionGroups) {
@@ -311,7 +363,7 @@ export class AuditLogService {
   }
 
   // ===========================================================================
-  // Safe Operations
+  // Safe Operations - Preserved for backward compatibility
   // ===========================================================================
 
   /**
@@ -320,7 +372,7 @@ export class AuditLogService {
    * @returns ServiceResult with created entry or error
    */
   async safeCreate(data: AuditLogCreate): Promise<ServiceResult<AuditLog>> {
-    return safeExecute(() => this.create(data));
+    return this.executeSafe(() => this.create(data));
   }
 
   /**
@@ -329,7 +381,7 @@ export class AuditLogService {
    * @returns ServiceResult with entries or error
    */
   async safeQuery(filters: AuditLogFilters = {}): Promise<ServiceResult<AuditLog[]>> {
-    return safeExecute(() => this.query(filters));
+    return this.executeSafe(() => this.query(filters));
   }
 
   // ===========================================================================
